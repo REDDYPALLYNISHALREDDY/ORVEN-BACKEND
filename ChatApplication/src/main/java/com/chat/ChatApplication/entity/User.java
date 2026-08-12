@@ -27,6 +27,13 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
+    private String emailVerificationToken;
+
+    private LocalDateTime emailVerificationTokenExpiry;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 

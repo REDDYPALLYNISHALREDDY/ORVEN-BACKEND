@@ -13,4 +13,6 @@ public interface AuthService {
 
     String googleLogin(GoogleTokenRequest request);
 
+    void verifyEmail(String token);
+
 }

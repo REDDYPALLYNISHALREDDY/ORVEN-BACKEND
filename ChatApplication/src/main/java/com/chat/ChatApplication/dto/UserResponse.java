@@ -20,4 +20,6 @@ public class UserResponse {
 
     private String bio;
 
+    private boolean emailVerified;
+
 }

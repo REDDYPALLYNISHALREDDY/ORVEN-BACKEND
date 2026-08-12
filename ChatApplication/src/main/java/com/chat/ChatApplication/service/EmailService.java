@@ -8,4 +8,10 @@ public interface EmailService {
             String inviteToken
     );
 
+    void sendVerificationEmail(
+            String email,
+            String fullName,
+            String verificationToken
+    );
+
 }

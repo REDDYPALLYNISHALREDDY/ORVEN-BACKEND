@@ -60,6 +60,7 @@ public class UserServiceImpl implements UserService {
                 .role(user.getRole())
                 .bio(user.getBio())
                 .profileImage(user.getProfileImage())
+                .emailVerified(user.isEmailVerified())
                 .build();
 
     }
@@ -72,6 +73,7 @@ public class UserServiceImpl implements UserService {
                 .email(user.getEmail())
                 .bio(user.getBio())
                 .profileImage(user.getProfileImage())
+                .emailVerified(user.isEmailVerified())
                 .role(user.getRole())
                 .build();
 
