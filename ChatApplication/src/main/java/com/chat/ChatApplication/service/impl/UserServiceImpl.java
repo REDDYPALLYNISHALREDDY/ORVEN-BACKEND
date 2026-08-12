@@ -26,6 +26,13 @@ import com.chat.ChatApplication.dto.SharedMediaDto;
 import org.springframework.web.multipart.MultipartFile;
 import com.chat.ChatApplication.service.CloudinaryService;
 
+import com.chat.ChatApplication.entity.Message;
+import com.chat.ChatApplication.repository.FriendRequestRepository;
+import com.chat.ChatApplication.repository.InvitationRepository;
+import com.chat.ChatApplication.repository.EmailVerificationTokenRepository;
+
+import java.util.ArrayList;
+
 import java.util.List;
 
 @Service
@@ -43,6 +50,13 @@ public class UserServiceImpl implements UserService {
     private final FriendshipRepository friendshipRepository;
 
     private final MessageRepository messageRepository;
+
+    private final FriendRequestRepository friendRequestRepository;
+
+    private final InvitationRepository invitationRepository;
+
+    private final EmailVerificationTokenRepository
+            emailVerificationTokenRepository;
 
     @Override
     public UserResponse getCurrentUser() {
@@ -131,13 +145,171 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<UserResponse> searchUsers(String keyword){
+    public List<UserResponse> searchUsers(
+            String keyword
+    ) {
 
-        return repository.findByFullNameContainingIgnoreCase(keyword)
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        User currentUser =
+                repository
+                        .findByEmail(
+                                authentication.getName()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                )
+                        );
+
+
+        return repository
+                .findByFullNameContainingIgnoreCase(
+                        keyword
+                )
+
                 .stream()
-                .map(this::map)
-                .toList();
 
+                .map(user -> {
+
+                    UserResponse response =
+                            map(user);
+
+
+                    /*
+                     * Current user's own account
+                     */
+
+                    if (
+                            currentUser
+                                    .getId()
+                                    .equals(
+                                            user.getId()
+                                    )
+                    ) {
+
+                        response.setFriendRequestStatus(
+                                "SELF"
+                        );
+
+                        return response;
+
+                    }
+
+
+                    /*
+                     * Already friends
+                     */
+
+                    boolean friends =
+                            friendshipRepository
+                                    .findByUser1AndUser2(
+                                            currentUser,
+                                            user
+                                    )
+                                    .isPresent()
+                                    ||
+                                    friendshipRepository
+                                            .findByUser1AndUser2(
+                                                    user,
+                                                    currentUser
+                                            )
+                                            .isPresent();
+
+
+                    if (friends) {
+
+                        response.setFriendRequestStatus(
+                                "ACCEPTED"
+                        );
+
+                        return response;
+
+                    }
+
+
+                    /*
+                     * Current user sent request
+                     */
+
+                    var sent =
+                            friendRequestRepository
+                                    .findBySenderAndReceiver(
+                                            currentUser,
+                                            user
+                                    )
+                                    .orElse(null);
+
+
+                    if (sent != null) {
+
+                        response.setFriendRequestStatus(
+                                sent
+                                        .getStatus()
+                                        .name()
+                        );
+
+                        return response;
+
+                    }
+
+
+                    /*
+                     * Other user sent request
+                     */
+
+                    var received =
+                            friendRequestRepository
+                                    .findBySenderAndReceiver(
+                                            user,
+                                            currentUser
+                                    )
+                                    .orElse(null);
+
+
+                    if (received != null) {
+
+                        if (
+                                received.getStatus()
+                                        == com.chat.ChatApplication
+                                        .entity
+                                        .FriendRequestStatus
+                                        .PENDING
+                        ) {
+
+                            response.setFriendRequestStatus(
+                                    "INCOMING"
+                            );
+
+                        } else {
+
+                            response.setFriendRequestStatus(
+                                    received
+                                            .getStatus()
+                                            .name()
+                            );
+
+                        }
+
+                        return response;
+
+                    }
+
+
+                    response.setFriendRequestStatus(
+                            "NONE"
+                    );
+
+
+                    return response;
+
+                })
+
+                .toList();
     }
 
     @Override
@@ -316,6 +488,137 @@ public class UserServiceImpl implements UserService {
                 .readReceipts(user.isReadReceipts())
                 .build();
 
+    }
+
+    @Override
+    @Transactional
+    public void deleteAccount() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+
+        User user =
+                repository
+                        .findByEmail(
+                                authentication.getName()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "User not found"
+                                )
+                        );
+
+
+        /*
+         * =====================================================
+         * 1. Delete friend requests
+         * =====================================================
+         */
+
+        friendRequestRepository.deleteBySender(
+                user
+        );
+
+        friendRequestRepository.deleteByReceiver(
+                user
+        );
+
+
+        /*
+         * =====================================================
+         * 2. Delete friendships
+         * =====================================================
+         */
+
+        friendshipRepository.deleteByUser1(
+                user
+        );
+
+        friendshipRepository.deleteByUser2(
+                user
+        );
+
+
+        /*
+         * =====================================================
+         * 3. Delete invitations created by this user
+         * =====================================================
+         */
+
+        invitationRepository.deleteBySender(
+                user
+        );
+
+
+        /*
+         * =====================================================
+         * 4. Delete email verification token
+         * =====================================================
+         */
+
+        emailVerificationTokenRepository
+                .deleteByUserId(
+                        user.getId()
+                );
+
+
+        /*
+         * =====================================================
+         * 5. Delete messages sent by this user
+         *
+         * Before deleting them, remove replyTo references
+         * from other users' messages.
+         * =====================================================
+         */
+
+        List<Message> userMessages =
+                messageRepository.findBySender(
+                        user
+                );
+
+
+        if (
+                !userMessages.isEmpty()
+        ) {
+
+            messageRepository.clearReplyReferences(
+                    userMessages
+            );
+
+
+            messageRepository.deleteAll(
+                    userMessages
+            );
+
+        }
+
+
+        /*
+         * =====================================================
+         * 6. Remove user from conversations
+         *
+         * We DO NOT delete the conversation itself because
+         * other users may still be using it.
+         * =====================================================
+         */
+
+        conversationMemberRepository.deleteByUser(
+                user
+        );
+
+
+        /*
+         * =====================================================
+         * 7. Finally delete the user
+         * =====================================================
+         */
+
+        repository.delete(
+                user
+        );
     }
 
 }

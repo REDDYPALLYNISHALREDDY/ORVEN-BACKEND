@@ -2,10 +2,12 @@ package com.chat.ChatApplication.controller;
 
 import com.chat.ChatApplication.dto.ApiResponse;
 import com.chat.ChatApplication.dto.FriendRequestDto;
-import com.chat.ChatApplication.service.FriendRequestService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
 import com.chat.ChatApplication.dto.FriendDto;
+import com.chat.ChatApplication.service.FriendRequestService;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,41 +18,55 @@ public class FriendRequestController {
 
     private final FriendRequestService friendRequestService;
 
+
     @PostMapping("/send/{receiverId}")
     public ApiResponse<FriendRequestDto> sendRequest(
-            @PathVariable Long receiverId) {
+            @PathVariable Long receiverId
+    ) {
 
         return new ApiResponse<>(
                 true,
                 "Friend request sent successfully",
-                friendRequestService.sendRequest(receiverId)
+                friendRequestService.sendRequest(
+                        receiverId
+                )
         );
     }
 
+
     @PutMapping("/accept/{requestId}")
     public ApiResponse<FriendRequestDto> acceptRequest(
-            @PathVariable Long requestId) {
+            @PathVariable Long requestId
+    ) {
 
         return new ApiResponse<>(
                 true,
                 "Friend request accepted",
-                friendRequestService.acceptRequest(requestId)
+                friendRequestService.acceptRequest(
+                        requestId
+                )
         );
     }
 
+
     @PutMapping("/reject/{requestId}")
     public ApiResponse<FriendRequestDto> rejectRequest(
-            @PathVariable Long requestId) {
+            @PathVariable Long requestId
+    ) {
 
         return new ApiResponse<>(
                 true,
                 "Friend request rejected",
-                friendRequestService.rejectRequest(requestId)
+                friendRequestService.rejectRequest(
+                        requestId
+                )
         );
     }
 
+
     @GetMapping("/pending")
-    public ApiResponse<List<FriendRequestDto>> pendingRequests() {
+    public ApiResponse<List<FriendRequestDto>>
+    pendingRequests() {
 
         return new ApiResponse<>(
                 true,
@@ -59,6 +75,7 @@ public class FriendRequestController {
         );
     }
 
+
     @GetMapping
     public ApiResponse<List<FriendDto>> friends() {
 
@@ -66,6 +83,32 @@ public class FriendRequestController {
                 true,
                 "Friends fetched successfully",
                 friendRequestService.getFriends()
+        );
+    }
+
+
+    /*
+     * Get relationship status with another user.
+     *
+     * NONE
+     * PENDING
+     * REJECTED
+     * ACCEPTED
+     * INCOMING
+     * SELF
+     */
+
+    @GetMapping("/status/{userId}")
+    public ApiResponse<String> getStatus(
+            @PathVariable Long userId
+    ) {
+
+        return new ApiResponse<>(
+                true,
+                "Friend status fetched successfully",
+                friendRequestService.getStatus(
+                        userId
+                )
         );
     }
 }

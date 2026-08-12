@@ -3,10 +3,11 @@ package com.chat.ChatApplication.service;
 import com.chat.ChatApplication.dto.UpdateProfileRequest;
 import com.chat.ChatApplication.dto.UserResponse;
 import com.chat.ChatApplication.dto.ChangePasswordRequest;
-import org.springframework.web.multipart.MultipartFile;
 import com.chat.ChatApplication.dto.ProfileStatsDto;
 import com.chat.ChatApplication.dto.SharedMediaDto;
 import com.chat.ChatApplication.dto.PrivacySettingsDto;
+
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -14,17 +15,27 @@ public interface UserService {
 
     UserResponse getCurrentUser();
 
-    UserResponse updateProfile(UpdateProfileRequest request);
+    UserResponse updateProfile(
+            UpdateProfileRequest request
+    );
 
-    UserResponse uploadProfileImage(MultipartFile file);
+    UserResponse uploadProfileImage(
+            MultipartFile file
+    );
 
     List<UserResponse> getAllUsers();
 
-    UserResponse getUserById(Long id);
+    UserResponse getUserById(
+            Long id
+    );
 
-    List<UserResponse> searchUsers(String keyword);
+    List<UserResponse> searchUsers(
+            String keyword
+    );
 
-    void changePassword(ChangePasswordRequest request);
+    void changePassword(
+            ChangePasswordRequest request
+    );
 
     ProfileStatsDto getProfileStats();
 
@@ -36,4 +47,5 @@ public interface UserService {
             PrivacySettingsDto request
     );
 
+    void deleteAccount();
 }

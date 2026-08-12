@@ -2,21 +2,28 @@ package com.chat.ChatApplication.repository;
 
 import com.chat.ChatApplication.entity.Conversation;
 import com.chat.ChatApplication.entity.Message;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import com.chat.ChatApplication.entity.MessageStatus;
 import com.chat.ChatApplication.entity.User;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface MessageRepository extends JpaRepository<Message, Long> {
+public interface MessageRepository
+        extends JpaRepository<Message, Long> {
 
-    List<Message> findByConversationOrderByCreatedAtAsc(Conversation conversation);
+    List<Message> findByConversationOrderByCreatedAtAsc(
+            Conversation conversation
+    );
 
-    Optional<Message> findTopByConversationOrderByCreatedAtDesc(Conversation conversation);
+    Optional<Message> findTopByConversationOrderByCreatedAtDesc(
+            Conversation conversation
+    );
 
     List<Message> findByConversationAndStatusOrderByCreatedAtAsc(
             Conversation conversation,
@@ -30,10 +37,35 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     );
 
     @Transactional
-    void deleteByConversation(Conversation conversation);
+    void deleteByConversation(
+            Conversation conversation
+    );
 
-    long countBySenderAndFileUrlIsNotNull(User sender);
+    long countBySenderAndFileUrlIsNotNull(
+            User sender
+    );
 
-    List<Message> findBySenderAndFileUrlIsNotNull(User sender);
+    List<Message> findBySenderAndFileUrlIsNotNull(
+            User sender
+    );
 
+    List<Message> findBySender(
+            User sender
+    );
+
+    /*
+     * Before deleting a user's messages, remove references
+     * from other messages that are replying to those messages.
+     */
+
+    @Modifying
+    @Transactional
+    @Query("""
+            UPDATE Message m
+            SET m.replyTo = null
+            WHERE m.replyTo IN :messages
+            """)
+    void clearReplyReferences(
+            @Param("messages") List<Message> messages
+    );
 }
