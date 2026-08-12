@@ -191,37 +191,111 @@ public class MessageServiceImpl implements MessageService {
 
         User me = currentUser();
 
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Conversation not found"));
+        Conversation conversation =
+                conversationRepository.findById(conversationId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Conversation not found"
+                                )
+                        );
 
         List<Message> unreadMessages =
-                messageRepository.findByConversationAndSenderNotAndStatus(
-                        conversation,
-                        me,
-                        MessageStatus.DELIVERED
-                );
+                messageRepository
+                        .findByConversationAndSenderNotAndStatus(
+                                conversation,
+                                me,
+                                MessageStatus.SENT
+                        );
 
-        unreadMessages.forEach(message ->
-                message.setStatus(MessageStatus.READ));
+        List<Message> deliveredMessages =
+                messageRepository
+                        .findByConversationAndSenderNotAndStatus(
+                                conversation,
+                                me,
+                                MessageStatus.DELIVERED
+                        );
 
-        messageRepository.saveAll(unreadMessages);
+        /*
+         * Combine SENT + DELIVERED messages.
+         *
+         * This is important because a message received
+         * through WebSocket can still be SENT in the
+         * database when the receiver is already inside
+         * the chat.
+         */
 
-        for (Message message : unreadMessages) {
+        List<Message> messagesToRead =
+                new java.util.ArrayList<>();
+
+        messagesToRead.addAll(
+                unreadMessages
+        );
+
+        deliveredMessages.forEach(
+                message -> {
+
+                    if (
+                            messagesToRead.stream()
+                                    .noneMatch(
+                                            existing ->
+                                                    existing.getId()
+                                                            .equals(
+                                                                    message.getId()
+                                                            )
+                                    )
+                    ) {
+
+                        messagesToRead.add(
+                                message
+                        );
+
+                    }
+
+                }
+        );
 
 
-            Message updatedMessage =
-                    messageRepository.findById(message.getId())
-                            .orElseThrow();
+        /*
+         * Change all received messages to READ.
+         */
 
-            MessageDto dto = map(updatedMessage);
+        messagesToRead.forEach(
+                message ->
+                        message.setStatus(
+                                MessageStatus.READ
+                        )
+        );
+
+
+        /*
+         * Save database changes first.
+         */
+
+        messageRepository.saveAll(
+                messagesToRead
+        );
+
+
+        /*
+         * Broadcast READ status immediately.
+         *
+         * The sender's WebSocket subscription will
+         * receive this updated MessageDto and change
+         * the tick to BLUE without refresh.
+         */
+
+        for (
+                Message message :
+                messagesToRead
+        ) {
+
+            MessageDto dto =
+                    map(message);
 
             messagingTemplate.convertAndSend(
-
-                    "/topic/chat/" + conversationId,
-
+                    "/topic/chat/" +
+                            conversationId,
                     dto
-
             );
 
         }
