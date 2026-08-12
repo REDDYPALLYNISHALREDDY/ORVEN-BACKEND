@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.chat.ChatApplication.dto.ChangePasswordRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import com.chat.ChatApplication.dto.SharedMediaDto;
 
 import com.chat.ChatApplication.service.OnlineUserService;
@@ -206,6 +207,19 @@ public class UserController {
 
         );
 
+    }
+
+
+    @DeleteMapping("/delete-account")
+    public ApiResponse<Void> deleteAccount() {
+
+        userService.deleteAccount();
+
+        return new ApiResponse<>(
+                true,
+                "Account deleted successfully",
+                null
+        );
     }
 
 }

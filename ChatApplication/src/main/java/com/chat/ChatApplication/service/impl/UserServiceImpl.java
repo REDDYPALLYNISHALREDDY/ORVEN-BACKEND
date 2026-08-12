@@ -30,6 +30,7 @@ import com.chat.ChatApplication.entity.Message;
 import com.chat.ChatApplication.repository.FriendRequestRepository;
 import com.chat.ChatApplication.repository.InvitationRepository;
 import com.chat.ChatApplication.repository.EmailVerificationTokenRepository;
+import com.chat.ChatApplication.repository.MessageReactionRepository;
 
 import java.util.ArrayList;
 
@@ -54,6 +55,8 @@ public class UserServiceImpl implements UserService {
     private final FriendRequestRepository friendRequestRepository;
 
     private final InvitationRepository invitationRepository;
+
+    private final MessageReactionRepository messageReactionRepository;
 
     private final EmailVerificationTokenRepository
             emailVerificationTokenRepository;
@@ -514,48 +517,38 @@ public class UserServiceImpl implements UserService {
 
         /*
          * =====================================================
-         * 1. Delete friend requests
+         * 1. DELETE FRIEND REQUESTS
          * =====================================================
          */
 
-        friendRequestRepository.deleteBySender(
-                user
-        );
+        friendRequestRepository.deleteBySender(user);
 
-        friendRequestRepository.deleteByReceiver(
-                user
-        );
+        friendRequestRepository.deleteByReceiver(user);
 
 
         /*
          * =====================================================
-         * 2. Delete friendships
+         * 2. DELETE FRIENDSHIPS
          * =====================================================
          */
 
-        friendshipRepository.deleteByUser1(
-                user
-        );
+        friendshipRepository.deleteByUser1(user);
 
-        friendshipRepository.deleteByUser2(
-                user
-        );
+        friendshipRepository.deleteByUser2(user);
 
 
         /*
          * =====================================================
-         * 3. Delete invitations created by this user
+         * 3. DELETE INVITATIONS
          * =====================================================
          */
 
-        invitationRepository.deleteBySender(
-                user
-        );
+        invitationRepository.deleteBySender(user);
 
 
         /*
          * =====================================================
-         * 4. Delete email verification token
+         * 4. DELETE EMAIL VERIFICATION TOKEN
          * =====================================================
          */
 
@@ -567,10 +560,21 @@ public class UserServiceImpl implements UserService {
 
         /*
          * =====================================================
-         * 5. Delete messages sent by this user
+         * 5. DELETE ALL REACTIONS MADE BY THIS USER
          *
-         * Before deleting them, remove replyTo references
-         * from other users' messages.
+         * This must happen before deleting the User because
+         * MessageReaction contains a reference to User.
+         * =====================================================
+         */
+
+        messageReactionRepository.deleteByUser(
+                user
+        );
+
+
+        /*
+         * =====================================================
+         * 6. GET ALL MESSAGES SENT BY THIS USER
          * =====================================================
          */
 
@@ -579,6 +583,15 @@ public class UserServiceImpl implements UserService {
                         user
                 );
 
+
+        /*
+         * =====================================================
+         * 7. CLEAR REPLY REFERENCES
+         *
+         * Other users may have replied to messages belonging
+         * to the account being deleted.
+         * =====================================================
+         */
 
         if (
                 !userMessages.isEmpty()
@@ -589,6 +602,12 @@ public class UserServiceImpl implements UserService {
             );
 
 
+            /*
+             * =================================================
+             * 8. DELETE USER'S MESSAGES
+             * =================================================
+             */
+
             messageRepository.deleteAll(
                     userMessages
             );
@@ -598,10 +617,10 @@ public class UserServiceImpl implements UserService {
 
         /*
          * =====================================================
-         * 6. Remove user from conversations
+         * 9. REMOVE USER FROM CONVERSATIONS
          *
-         * We DO NOT delete the conversation itself because
-         * other users may still be using it.
+         * Do NOT delete the conversations because other users
+         * may still need them.
          * =====================================================
          */
 
@@ -612,7 +631,7 @@ public class UserServiceImpl implements UserService {
 
         /*
          * =====================================================
-         * 7. Finally delete the user
+         * 10. FINALLY DELETE USER
          * =====================================================
          */
 
